@@ -4,6 +4,7 @@ import qualified Codec.GHC.Log as GHC
 import Codec.Sarsi (Message)
 import Codec.Sarsi.GHC (fromGHCLog)
 import qualified Codec.Sarsi.Rust as Rust
+import qualified Codec.Sarsi.SBT as SBT
 import Data.Attoparsec.Text.Machine (streamParser)
 import Data.Machine (ProcessT, asParts, auto, flattened, (<~))
 import Data.Machine.Fanout (fanout)
@@ -37,7 +38,7 @@ processAll :: [ProcessT IO Text Message] -> ProcessT IO Text Message
 processAll xs = flattened <~ (fanout $ (\p -> (auto (\x -> [x])) <~ p) <$> xs)
 
 processAny :: ProcessT IO Text Message
-processAny = processAll [processHaskell, processRust]
+processAny = processAll [processHaskell, processRust, processSbt]
 
 processHaskell :: ProcessT IO Text Message
 processHaskell = asParts <~ auto unpack <~ streamParser GHC.messageParser
@@ -47,6 +48,12 @@ processHaskell = asParts <~ auto unpack <~ streamParser GHC.messageParser
 
 processRust :: ProcessT IO Text Message
 processRust = asParts <~ auto unpack <~ streamParser Rust.messageParser
+  where
+    unpack (Right msg) = [msg]
+    unpack (Left _) = []
+
+processSbt :: ProcessT IO Text Message
+processSbt = asParts <~ auto unpack <~ streamParser SBT.messageParser
   where
     unpack (Right msg) = [msg]
     unpack (Left _) = []
